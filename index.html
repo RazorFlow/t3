@@ -30,37 +30,357 @@
 
       </header>
       <section>
-        <h3>
-<a name="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages"><span class="octicon octicon-link"></span></a>Welcome to GitHub Pages.</h3>
+        <h1>
+<a name="t3js---integration-testing-for-single-page-apps" class="anchor" href="#t3js---integration-testing-for-single-page-apps"><span class="octicon octicon-link"></span></a>t3.js - Integration Testing for Single Page Apps</h1>
 
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
+<p>t3.js (short for "Terrific Testing Tool") is a tool to help you preform integration tests Single Page JavaScript applications. It doesn't do any testing by itself, instead can be configured to use any testing framework which supports asynchronous testing. By default, it ships with support for Jasmine testing framework.</p>
 
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
+<h2>
+<a name="why-use-t3" class="anchor" href="#why-use-t3"><span class="octicon octicon-link"></span></a>Why use t3?</h2>
+
+<p>While JavaScript testing libraries are generally great for testing unit functions (like Jasmine), it doesn't work great for testing UIs which have heavy DOM involvement. Generally you use tools like Selenium for this, but Selenium doesn't allow you to mix things together and check for things like "Assert this DOM node has only one child".</p>
+
+<p>As an example, let's consider a Login Form. This form does AJAX validation and displays an error message.</p>
+
+<pre><code>&lt;form id="loginForm"&gt;
+    &lt;input type="text" id="userName"/&gt;
+    &lt;input type="password" id="userPass"&gt;
+    &lt;button id="submitButton"&gt;Login&lt;/button&gt;
+    &lt;p id="errorMessage"&gt;&lt;/p&gt;
+&lt;/form&gt;
 </code></pre>
 
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
+<p>To test this, we first enter the wrong password and then the correct one. </p>
 
 <h3>
-<a name="designer-templates" class="anchor" href="#designer-templates"><span class="octicon octicon-link"></span></a>Designer Templates</h3>
+<a name="testing-without-t3" class="anchor" href="#testing-without-t3"><span class="octicon octicon-link"></span></a>Testing without t3</h3>
 
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
+<pre><code>it("Should show error message on wrong password and hide form on successful login", function (done) {
+    // Set values
+    $("#userName").attr("value", "user");
+    $("#userPass").attr("value", "wrong_password");
+    $("#submitButton").click();
+    setTimeout (function () {
+        expect($("#errorMessage").text()).toBe("Wrong Password");
+        $("#userPass").attr("value", "correct_password");
+        $("#submitButton").click();
+        setTimeout (function () {
+            expect($("#errorMessage").text()).toBe("");
+            expect($("#loginForm").css("display")).toBe("none")
+            done ();
+        }, 500);
+    }, 500);
+});
+</code></pre>
 
 <h3>
-<a name="rather-drive-stick" class="anchor" href="#rather-drive-stick"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
+<a name="testing-with-t3" class="anchor" href="#testing-with-t3"><span class="octicon octicon-link"></span></a>Testing with t3</h3>
 
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+<pre><code>it("Should show error message on wrong password and hide form on successful login", function (done) {
+    t3.start()
+      .fillForm("#userName", "user")
+      .fillForm("#userPass", "wrong_password")
+      .click("#submitButton")
+      .wait(500)
+      .assertText("#errorMessage", "Wrong Password")
+      .fillForm("#userPass", "correct_password")
+      .click("#submitButton")
+      .wait(500)
+      .assertText("#errorMessage", "")
+      .assertCSS("#loginForm", "display", "none")
+      .finish(done)
+});
+</code></pre>
+
+<h2>
+<a name="how-to-use-it" class="anchor" href="#how-to-use-it"><span class="octicon octicon-link"></span></a>How to use it</h2>
+
+<p>First, include jQuery and t3.min.js in your page. Currently only Jasmine is supported. And create an async test.</p>
+
+<pre><code>it("Should do something awesome", function (done) {
+    t3.start()
+      // All t3 statements come here
+      .finish(done) // this should be the last statement
+});
+</code></pre>
+
+<p>You will have to <em>chain</em> various statements together to perform actions and checks</p>
 
 <h3>
-<a name="authors-and-contributors" class="anchor" href="#authors-and-contributors"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
+<a name="understanding-t3s-context" class="anchor" href="#understanding-t3s-context"><span class="octicon octicon-link"></span></a>Understanding t3's Context</h3>
 
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+<p>Since t3 is frequently used to test the DOM, and not every item in the DOM has an id or a unique selector, for convenience, t3 always operates on a specific context.</p>
+
+<p>For example, if you're making an application and are testing everything rendered into a div called "renderTarget", you can just do:</p>
+
+<pre><code>t3.start()
+  .setContext ("#renderTarget")
+  // ...
+</code></pre>
+
+<p>Now when you use a command like</p>
+
+<pre><code>  .assertText("p.warning", "Please check yo'self");
+</code></pre>
+
+<p>It only checks inside the <code>#renderTarget</code>.</p>
 
 <h3>
-<a name="support-or-contact" class="anchor" href="#support-or-contact"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
+<a name="using-various-statements" class="anchor" href="#using-various-statements"><span class="octicon octicon-link"></span></a>Using various statements</h3>
 
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
+<h4>
+<a name="start" class="anchor" href="#start"><span class="octicon octicon-link"></span></a>start</h4>
+
+<p>Starts the chain.</p>
+
+<pre><code>t3.start()
+  .finish(done)
+</code></pre>
+
+<h4>
+<a name="finish" class="anchor" href="#finish"><span class="octicon octicon-link"></span></a>finish</h4>
+
+<p>Finishes the chain and if no errors are found, marks the test as successful.</p>
+
+<pre><code>t3.start()
+  .finish(done)
+</code></pre>
+
+<h4>
+<a name="wait" class="anchor" href="#wait"><span class="octicon octicon-link"></span></a>wait</h4>
+
+<p>Waits for some number of milliseconds before continuing to the next step on the chain.</p>
+
+<pre><code>t3.start()
+  .wait(2000) // Wait 2 seconds before finishing the test
+  .finish(done)
+</code></pre>
+
+<h4>
+<a name="debug" class="anchor" href="#debug"><span class="octicon octicon-link"></span></a>debug</h4>
+
+<p>Launches a JavaScript debugger inside the chain so you can manually examine the context of the DOM. You might want to remove this in production.</p>
+
+<pre><code>t3.start()
+  .debug()
+  .finish(done)
+</code></pre>
+
+<h4>
+<a name="setcontext" class="anchor" href="#setcontext"><span class="octicon octicon-link"></span></a>setContext</h4>
+
+<p>Allows you to set the context. You can pass either:</p>
+
+<ul>
+<li>A jQuery Selector. This is always selected from the top-level.</li>
+<li>A jQuery object which you've already selected</li>
+</ul><pre><code>t3.start()
+  .setContext ("#mailBoxRenderer")
+  .finish(done);
+</code></pre>
+
+<h4>
+<a name="drillcontext" class="anchor" href="#drillcontext"><span class="octicon octicon-link"></span></a>drillContext</h4>
+
+<p>If you already have a context, and want to set a new context which is below the current context, you can use <code>drillContext</code></p>
+
+<pre><code>t3.start()
+  .setContext ("#mailBoxRenderer")
+  .drillContext ("li.mailItem:eq(0)")
+  .finish(done);
+</code></pre>
+
+<h4>
+<a name="entertempcontext-and-exittempcontext" class="anchor" href="#entertempcontext-and-exittempcontext"><span class="octicon octicon-link"></span></a>enterTempContext and exitTempContext</h4>
+
+<p>If you want to temporarily go into a sub-context div (for example if you're checking a todo list, you go from the full list temporarily into a single item). You can exit this temp context by using <code>exitTempContext</code></p>
+
+<pre><code>t3.start()
+  .setContext ("#todoListRenderer") // context is #todoListRenderer
+  .enterTempContext ("div.todoItem:eq(5)") // context is #todoListRenderer &gt; div.todoItem:eq(5)
+    .assert(".todoName", "Throw ring[0] in mordor")
+  .exitTempContext () // context is #todoListRenderer
+  .finish(done);
+</code></pre>
+
+<h4>
+<a name="trigger" class="anchor" href="#trigger"><span class="octicon octicon-link"></span></a>trigger</h4>
+
+<p>Trigger an event on an element. (This is still in development)</p>
+
+<pre><code>t3.start()
+  .setContext ("#loginForm")
+  .trigger ("#userName", "click")
+  .finish(done);
+</code></pre>
+
+<p>There are some shortcut methods for common functions like <code>.click</code> which you can use directly</p>
+
+<pre><code>t3.start()
+  .setContext ("#loginForm")
+  .click ("#submitButton")
+  .finish(done);
+</code></pre>
+
+<h4>
+<a name="dosync" class="anchor" href="#dosync"><span class="octicon octicon-link"></span></a>doSync</h4>
+
+<p>Execute some code in the correct step in the chain.</p>
+
+<pre><code>t3.start()
+  .setContext ("#loginForm")
+  .doSync (function () {
+    console.log("t3 is awesome");
+  })
+  .finish(done);
+</code></pre>
+
+<h4>
+<a name="doasync" class="anchor" href="#doasync"><span class="octicon octicon-link"></span></a>doAsync</h4>
+
+<pre><code>t3.start()
+  .setContext ("#loginForm")
+  .doAsync(function (contextDiv, _done) {
+    setTimeout (function () {
+        console.log ("finished async task");
+        _done ();
+    });
+    console.log("Starting async task")
+  })
+  .doSync (function () {
+    console.log("t3 is awesome");
+  })
+  .finish(done);
+</code></pre>
+
+<p>This will output:</p>
+
+<pre><code>Starting async task
+finished async task
+t3 is awesome
+</code></pre>
+
+<h4>
+<a name="assert" class="anchor" href="#assert"><span class="octicon octicon-link"></span></a>assert</h4>
+
+<p>This is the generic assert that you can use to check custom conditions. For example, to check if a todo list has only 5 items after adding 5 items:</p>
+
+<pre><code>t3.start()
+  .setContext("#todoList &gt; li")
+  .assert(function (contextDiv, success, error) {
+    if(contextDiv.length == 5) {
+        success ();
+    }
+    else {
+        error ("The number of list items is not 5");
+    }
+  })
+  .finish (done)
+</code></pre>
+
+<p>This allows you to exercise full control over all the custom testing features that t3 does not provide, while still benefiting from the async chain.</p>
+
+<h4>
+<a name="asserttext" class="anchor" href="#asserttext"><span class="octicon octicon-link"></span></a>assertText</h4>
+
+<p>Asserts that the text has a specific value</p>
+
+<pre><code>t3.start ()
+  // ...
+  .assertText ("p.warning", "Something is not right")
+  .finish(done);
+</code></pre>
+
+<h4>
+<a name="assertcss" class="anchor" href="#assertcss"><span class="octicon octicon-link"></span></a>assertCSS</h4>
+
+<p>Assert that the CSS values of an element match requirements.</p>
+
+<pre><code>t3.start ()
+  // ...
+  .assertCSS ("p.warning", "color", "red") // a single condition
+  .assertCSS ("#tooltip", {
+    "display": "inline",
+    "float": "left"
+  }) // multiple conditions
+  .finish(done);
+</code></pre>
+
+<h4>
+<a name="assertattrs" class="anchor" href="#assertattrs"><span class="octicon octicon-link"></span></a>assertAttrs</h4>
+
+<p>Assert attibute values of an element match requirements.</p>
+
+<pre><code>t3.start ()
+  // ...
+  .assertCSS ("p.warning", "data-alert", "warning") // a single condition
+  .assertCSS ("#tooltip", {
+    "class": "tooltip",
+    "data-tooltip-content": "Hello"
+  }) // multiple conditions
+  .finish(done);
+</code></pre>
+
+<h4>
+<a name="svgmeasure" class="anchor" href="#svgmeasure"><span class="octicon octicon-link"></span></a>svgMeasure</h4>
+
+<p>Function which works with SVG attributes instead of CSS items.</p>
+
+<pre><code>t3.start ()
+  .setContext ("svg")
+  .svgMeasure ("rect", "width", 42)
+  .finish(done);
+</code></pre>
+
+<h4>
+<a name="svgtriggerevent" class="anchor" href="#svgtriggerevent"><span class="octicon octicon-link"></span></a>svgTriggerEvent</h4>
+
+<p>Function which works with SVG elements instead of regular elemtns</p>
+
+<pre><code>t3.start ()
+  .setContext ("svg")
+  .svgTriggerEvent("rect", "click")
+  .finish(done);
+</code></pre>
+
+<h3>
+<a name="helper-functions" class="anchor" href="#helper-functions"><span class="octicon octicon-link"></span></a>Helper functions</h3>
+
+<p>T3 also includes a few special helper functions.</p>
+
+<h4>
+<a name="t3between-start-end" class="anchor" href="#t3between-start-end"><span class="octicon octicon-link"></span></a>t3.between (start, end)</h4>
+
+<p>Checking for CSS/SVG measurements might have slight variations, and testing them perfectly is hard, so you can provide a range to check the values against.</p>
+
+<pre><code>.assertCSS("#todoItem", "height", t3.between(45, 48));
+</code></pre>
+
+<h4>
+<a name="t3approximate-value-tolerance" class="anchor" href="#t3approximate-value-tolerance"><span class="octicon octicon-link"></span></a>t3.approximate (value, tolerance)</h4>
+
+<p>If you expect a value of, say, 45. But there might be some minor changes, with a maximum deviation of 2.</p>
+
+<pre><code>.assertCSS("#todoItem", "height", t3.approximate(45, 2));
+</code></pre>
+
+<h2>
+<a name="special-features" class="anchor" href="#special-features"><span class="octicon octicon-link"></span></a>Special features</h2>
+
+<h4>
+<a name="check-values-using-a-function" class="anchor" href="#check-values-using-a-function"><span class="octicon octicon-link"></span></a>Check values using a function</h4>
+
+<p>Just about anywhere a value or object is expected, you can pass a function which handles the evaluation. You can also have custom errors.</p>
+
+<pre><code>// For example if your DOM outputs strings which aren't trimmed
+// &lt;p class="warning"&gt;       This is a warning   &lt;/p&gt;
+assertText("p.warning", "This is a warning"); // would fail
+
+// you can use
+assertText ("p.warning", function (value, context) {
+    return value.trim() == "This is a warning";
+}); // this passes
+</code></pre>
       </section>
       <footer>
         <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
