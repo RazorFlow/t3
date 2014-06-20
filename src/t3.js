@@ -164,6 +164,9 @@ var TestHelper = function () {
 			else if (baseVal[0]) {
 				found = baseVal[0].value
 			}
+			else if (item.getAttribute(attribute) !== null) { // for Safari and ie
+				found = +item.getAttribute(attribute);
+			}
 			else {
 				self.showError("Cannot found a baseval");
 			}
